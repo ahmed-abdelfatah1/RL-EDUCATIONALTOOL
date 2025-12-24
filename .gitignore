@@ -1,0 +1,13 @@
+# Environments
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Byte-compiled files
+__pycache__/
+*.py[codz]
+
+node_modules/
