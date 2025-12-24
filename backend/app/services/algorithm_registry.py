@@ -50,8 +50,13 @@ N_STEP = HyperparameterInfo(
     step=1,
 )
 
-TABULAR_ENVS = ["gridworld", "frozenlake", "gym4real"]
-CONTROL_ENVS = ["gridworld", "frozenlake", "cartpole", "mountaincar", "breakout", "gym4real"]
+# Environments with known transition dynamics (model-based DP works)
+# GridWorld, FrozenLake, and Gym4Real all have deterministic/known transitions
+MODEL_BASED_ENVS = ["gridworld", "frozenlake", "gym4real"]
+
+# Environments where tabular methods work (discrete or discretized state space)
+# CartPole and MountainCar use discretization, Breakout requires DQN (excluded)
+TABULAR_ENVS = ["gridworld", "frozenlake", "cartpole", "mountaincar", "gym4real"]
 
 
 ALGORITHM_METADATA: Dict[str, AlgorithmInfo] = {
@@ -59,42 +64,43 @@ ALGORITHM_METADATA: Dict[str, AlgorithmInfo] = {
         name="q_learning",
         display_name="Q-Learning",
         description="Off-policy TD control using greedy action selection from Q-values.",
-        supports_envs=CONTROL_ENVS,
+        supports_envs=TABULAR_ENVS,
         hyperparameters=[LEARNING_RATE, DISCOUNT_FACTOR, EPSILON],
     ),
     "sarsa": AlgorithmInfo(
         name="sarsa",
         display_name="SARSA",
         description="On-policy TD control using the action actually taken in next state.",
-        supports_envs=CONTROL_ENVS,
+        supports_envs=TABULAR_ENVS,
         hyperparameters=[LEARNING_RATE, DISCOUNT_FACTOR, EPSILON],
     ),
     "n_step_td": AlgorithmInfo(
         name="n_step_td",
         display_name="n-step TD",
         description="On-policy TD control using n-step returns for bootstrapping.",
-        supports_envs=CONTROL_ENVS,
+        supports_envs=TABULAR_ENVS,
         hyperparameters=[LEARNING_RATE, DISCOUNT_FACTOR, EPSILON, N_STEP],
     ),
     "monte_carlo": AlgorithmInfo(
         name="monte_carlo",
         display_name="Monte Carlo",
         description="First-visit MC control learning from complete episodes.",
-        supports_envs=CONTROL_ENVS,
+        supports_envs=TABULAR_ENVS,
         hyperparameters=[DISCOUNT_FACTOR, EPSILON],
     ),
     "td_prediction": AlgorithmInfo(
         name="td_prediction",
         display_name="TD Prediction",
-        description="TD(0) state-value prediction for policy evaluation.",
-        supports_envs=TABULAR_ENVS,
+        description="TD(0) state-value prediction - evaluates a random policy to demonstrate value learning.",
+        supports_envs=["gridworld", "frozenlake"],  # Only small grids for educational value
         hyperparameters=[LEARNING_RATE, DISCOUNT_FACTOR],
     ),
+
     "policy_iteration": AlgorithmInfo(
         name="policy_iteration",
         display_name="Policy Iteration",
         description="Dynamic programming method alternating policy evaluation and improvement.",
-        supports_envs=TABULAR_ENVS,
+        supports_envs=MODEL_BASED_ENVS,
         hyperparameters=[
             DISCOUNT_FACTOR,
             HyperparameterInfo(
@@ -112,7 +118,7 @@ ALGORITHM_METADATA: Dict[str, AlgorithmInfo] = {
         name="value_iteration",
         display_name="Value Iteration",
         description="Dynamic programming method computing optimal value function directly.",
-        supports_envs=TABULAR_ENVS,
+        supports_envs=MODEL_BASED_ENVS,
         hyperparameters=[
             DISCOUNT_FACTOR,
             HyperparameterInfo(

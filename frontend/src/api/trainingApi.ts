@@ -25,6 +25,8 @@ export interface TrainingRunResponse {
   env_name: string;
   algorithm_name: string;
   episodes: EpisodeMetrics[];
+  value_function?: Record<string, number>;
+  policy?: Record<string, number>;
 }
 
 export async function runTraining(
@@ -32,4 +34,3 @@ export async function runTraining(
 ): Promise<TrainingRunResponse> {
   return post<TrainingRunResponse, TrainingRequest>("/train/run", body);
 }
-

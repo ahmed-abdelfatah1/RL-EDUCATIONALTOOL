@@ -116,6 +116,44 @@ class Gym4RealEnv:
         y_bin = state.get("y_bin", 0)
         return x_bin * self.NUM_BINS + y_bin
 
+    def get_transition_model(self) -> dict:
+        """Return transition dynamics for model-based algorithms.
+
+        Returns:
+            dict: Transition model with structure:
+                  {state_id: {action: [(prob, next_state_id, reward, done)]}}
+        """
+        model: dict = {}
+        goal_x_bin = self._discretize(
+            self.goal[0], self.GRID_MIN, self.GRID_MAX, self.NUM_BINS
+        )
+        goal_y_bin = self._discretize(
+            self.goal[1], self.GRID_MIN, self.GRID_MAX, self.NUM_BINS
+        )
+        goal_state_id = goal_x_bin * self.NUM_BINS + goal_y_bin
+
+        for x_bin in range(self.NUM_BINS):
+            for y_bin in range(self.NUM_BINS):
+                state_id = x_bin * self.NUM_BINS + y_bin
+                model[state_id] = {}
+
+                for action in range(4):
+                    dx, dy = ACTION_DELTAS[action]
+                    next_x = x_bin + int(dx)
+                    next_y = y_bin + int(dy)
+
+                    next_x = max(0, min(self.NUM_BINS - 1, next_x))
+                    next_y = max(0, min(self.NUM_BINS - 1, next_y))
+
+                    next_state_id = next_x * self.NUM_BINS + next_y
+                    is_goal = next_state_id == goal_state_id
+                    reward = self.GOAL_REWARD if is_goal else self.STEP_PENALTY
+                    done = is_goal
+
+                    model[state_id][action] = [(1.0, next_state_id, reward, done)]
+
+        return model
+
     def _build_state_dict(self) -> dict:
         """Build current state dictionary with discretized position."""
         x_bin = self._discretize(

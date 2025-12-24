@@ -8,6 +8,5 @@ venv.bak/
 
 # Byte-compiled files
 __pycache__/
-*.py[codz]
 
 node_modules/

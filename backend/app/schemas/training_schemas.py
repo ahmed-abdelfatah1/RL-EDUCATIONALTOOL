@@ -37,6 +37,8 @@ class TrainingRunResponse(BaseModel):
     env_name: str
     algorithm_name: str
     episodes: List[EpisodeMetrics]
+    value_function: Dict[str, float] | None = None
+    policy: Dict[str, int] | None = None
 
 
 class TrainingSnapshot(BaseModel):

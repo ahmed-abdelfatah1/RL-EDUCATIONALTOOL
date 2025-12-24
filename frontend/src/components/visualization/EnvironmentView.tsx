@@ -4,14 +4,12 @@ import type {
   MountainCarRenderState,
   CartPoleRenderState,
   FrozenLakeRenderState,
-  BreakoutRenderState,
   Gym4RealRenderState,
 } from "../../types/environment"
 import { GridWorldView } from "./GridWorldView"
 import { MountainCarView } from "./MountainCarView"
 import { CartPoleView } from "./CartPoleView"
 import { FrozenLakeView } from "./FrozenLakeView"
-import { BreakoutView } from "./BreakoutView"
 import { Gym4RealView } from "./Gym4RealView"
 import { Card } from "../ui/card"
 import { Grid3x3 } from "lucide-react"
@@ -50,9 +48,6 @@ export function EnvironmentView({ envName, state }: EnvironmentViewProps) {
 
     case "frozenlake":
       return <FrozenLakeView state={state as FrozenLakeRenderState} />
-
-    case "breakout":
-      return <BreakoutView state={state as BreakoutRenderState} />
 
     case "gym4real":
       return <Gym4RealView state={state as Gym4RealRenderState} />

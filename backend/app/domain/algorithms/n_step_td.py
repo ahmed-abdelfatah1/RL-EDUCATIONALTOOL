@@ -39,6 +39,7 @@ class NStepTDAgent:
         self.learning_rate = learning_rate
         self.discount_factor = discount_factor
         self.epsilon = epsilon
+        print(f"NStepTDAgent initialized with n_step={n_step}")
 
         self.q_values: Dict[Tuple, np.ndarray] = {}
 

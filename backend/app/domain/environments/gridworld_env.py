@@ -126,6 +126,53 @@ class GridWorldEnv:
             "info": {"grid_size": self.GRID_SIZE, "goal": self.GOAL_POS},
         }
 
+    def get_transition_model(self) -> dict:
+        """Return transition dynamics for model-based algorithms.
+
+        Returns:
+            dict: Transition model with structure:
+                  {state_id: {action: [(prob, next_state_id, reward, done)]}}
+        """
+        model: dict = {}
+        goal_state_id = self.GOAL_POS[0] * self.GRID_SIZE + self.GOAL_POS[1]
+
+        for row in range(self.GRID_SIZE):
+            for col in range(self.GRID_SIZE):
+                state_id = row * self.GRID_SIZE + col
+                model[state_id] = {}
+
+                for action in range(4):
+                    delta = self.ACTIONS[action]
+                    new_row = row + delta[0]
+                    new_col = col + delta[1]
+
+                    # Check bounds
+                    if not self._is_valid_position(new_row, new_col):
+                        new_row, new_col = row, col  # Stay in place
+
+                    next_state_id = new_row * self.GRID_SIZE + new_col
+                    is_goal = next_state_id == goal_state_id
+
+                    # Compute reward
+                    if is_goal:
+                        reward = 10.0
+                    elif next_state_id == state_id:
+                        reward = -1.0  # Hit wall
+                    else:
+                        # Distance-based reward
+                        old_dist = abs(row - self.GOAL_POS[0]) + abs(col - self.GOAL_POS[1])
+                        new_dist = abs(new_row - self.GOAL_POS[0]) + abs(new_col - self.GOAL_POS[1])
+                        if new_dist < old_dist:
+                            reward = 0.5
+                        elif new_dist > old_dist:
+                            reward = -0.5
+                        else:
+                            reward = -0.1
+
+                    model[state_id][action] = [(1.0, next_state_id, reward, is_goal)]
+
+        return model
+
     def _is_valid_position(self, row: int, col: int) -> bool:
         """Check if position is within grid bounds."""
         return 0 <= row < self.GRID_SIZE and 0 <= col < self.GRID_SIZE

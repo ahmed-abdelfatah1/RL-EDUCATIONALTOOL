@@ -6,7 +6,6 @@ Provides centralized access to all environment implementations.
 from typing import Literal
 
 from .base_env import BaseEnv
-from .breakout_env import BreakoutEnv
 from .cartpole_env import CartPoleEnv
 from .frozenlake_env import FrozenLakeEnv
 from .gridworld_env import GridWorldEnv
@@ -19,7 +18,6 @@ EnvName = Literal[
     "cartpole",
     "mountaincar",
     "frozenlake",
-    "breakout",
     "gym4real",
 ]
 
@@ -28,7 +26,6 @@ ENV_REGISTRY: dict[EnvName, type[BaseEnv]] = {
     "cartpole": CartPoleEnv,
     "mountaincar": MountainCarEnv,
     "frozenlake": FrozenLakeEnv,
-    "breakout": BreakoutEnv,
     "gym4real": Gym4RealEnv,
 }
 
@@ -59,7 +56,6 @@ __all__ = [
     "CartPoleEnv",
     "MountainCarEnv",
     "FrozenLakeEnv",
-    "BreakoutEnv",
     "Gym4RealEnv",
     "EnvName",
     "ENV_REGISTRY",

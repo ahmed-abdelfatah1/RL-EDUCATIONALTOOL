@@ -163,11 +163,14 @@ class ValueIteration:
         Returns:
             int: Action from policy (or random if not learned yet).
         """
-        key = self._state_to_key(state)
+        # Extract state_id from state dict (handles both GridWorld and FrozenLake)
+        state_id = state.get("observation", state.get("state_index", 0))
+        key = (state_id,)
         if key in self.policy:
             return self.policy[key]
         # Random action if policy not yet computed
         return int(np.random.randint(0, self.num_actions))
+
 
     def update(
         self,

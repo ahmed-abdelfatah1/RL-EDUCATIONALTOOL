@@ -52,7 +52,9 @@ def run_episode(
         render_state = env.render_state()
         publish_env_state(env_name, render_state)
 
+    print(f"Starting episode loop with max_steps={max_steps}", flush=True)
     for t in range(max_steps):
+        print(f"Step {t}", flush=True)
         action = agent.select_action(state)
         next_state, reward, done = env.step(action)
 

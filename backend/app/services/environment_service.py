@@ -40,13 +40,6 @@ ENV_METADATA: Dict[EnvName, EnvironmentInfo] = {
         supports_continuous=False,
         description="Gridworld with slippery ice, holes, and a goal.",
     ),
-    "breakout": EnvironmentInfo(
-        name="breakout",
-        display_name="Breakout",
-        supports_discrete=True,
-        supports_continuous=False,
-        description="Atari brick-breaking game.",
-    ),
     "gym4real": EnvironmentInfo(
         name="gym4real",
         display_name="Gym4Real",
@@ -55,6 +48,7 @@ ENV_METADATA: Dict[EnvName, EnvironmentInfo] = {
         description="Abstract 2D point robot environment.",
     ),
 }
+
 
 
 def list_environments() -> list[EnvironmentInfo]:

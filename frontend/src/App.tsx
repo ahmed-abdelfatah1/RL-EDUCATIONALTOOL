@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useMemo } from "react"
 import { fetchEnvironments, EnvironmentInfo } from "./api/environmentApi"
 import { fetchAlgorithms, AlgorithmInfo } from "./api/algorithmApi"
 import { TrainingRunResponse } from "./api/trainingApi"
@@ -22,7 +22,11 @@ import {
   Eye,
   Target,
   TrendingUp,
+  BookOpen,
 } from "lucide-react"
+import { AlgorithmExplanation } from "./components/education/AlgorithmExplanation"
+import { ValueFunctionView } from "./components/visualization/ValueFunctionView"
+import { PolicyView } from "./components/visualization/PolicyView"
 
 function App() {
   const [environments, setEnvironments] = useState<EnvironmentInfo[]>([])
@@ -35,6 +39,12 @@ function App() {
   const [envState, setEnvState] = useState<AnyEnvRenderState | null>(null)
   const [stepping, setStepping] = useState(false)
   const [followTraining, setFollowTraining] = useState(true)
+
+  // Filter algorithms based on selected environment compatibility
+  const compatibleAlgorithms = useMemo(() => {
+    if (!selectedEnv) return algorithms
+    return algorithms.filter((algo) => algo.supports_envs.includes(selectedEnv))
+  }, [algorithms, selectedEnv])
 
   useEffect(() => {
     async function loadData() {
@@ -63,8 +73,27 @@ function App() {
     void loadData()
   }, [])
 
+  // Auto-select first compatible algorithm when environment changes
+  useEffect(() => {
+    if (!selectedEnv || algorithms.length === 0) return
+
+    const compatible = algorithms.filter((algo) =>
+      algo.supports_envs.includes(selectedEnv)
+    )
+
+    if (compatible.length > 0) {
+      const currentIsCompatible = compatible.some((a) => a.name === selectedAlgo)
+      if (!currentIsCompatible) {
+        setSelectedAlgo(compatible[0].name)
+      }
+    }
+  }, [selectedEnv, algorithms, selectedAlgo])
+
   useEffect(() => {
     if (!selectedEnv) return
+
+    // Clear previous results when environment changes
+    setTrainingResult(null)
 
     void (async () => {
       try {
@@ -76,6 +105,11 @@ function App() {
       }
     })()
   }, [selectedEnv])
+
+  // Clear results when algorithm changes
+  useEffect(() => {
+    setTrainingResult(null)
+  }, [selectedAlgo])
 
   const handleStreamState = useCallback((state: AnyEnvRenderState) => {
     setEnvState(state)
@@ -206,23 +240,33 @@ function App() {
                   <Label className="text-sm font-medium text-foreground flex items-center gap-2">
                     <Brain className="h-4 w-4 text-muted-foreground" />
                     Algorithm
+                    <span className="text-xs text-muted-foreground font-normal">
+                      ({compatibleAlgorithms.length} compatible)
+                    </span>
                   </Label>
                   <Select value={selectedAlgo} onValueChange={setSelectedAlgo}>
                     <SelectTrigger className="w-full bg-background border-border">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {algorithms.map((algo) => (
-                        <SelectItem key={algo.name} value={algo.name}>
-                          {algo.display_name}
-                        </SelectItem>
-                      ))}
+                      {compatibleAlgorithms.length > 0 ? (
+                        compatibleAlgorithms.map((algo) => (
+                          <SelectItem key={algo.name} value={algo.name}>
+                            {algo.display_name}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                          No compatible algorithms
+                        </div>
+                      )}
                     </SelectContent>
                   </Select>
                   {selectedAlgoInfo && (
                     <p className="text-xs text-muted-foreground">{selectedAlgoInfo.description}</p>
                   )}
                 </div>
+
 
                 <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                   <div className="flex items-center gap-2">
@@ -282,7 +326,7 @@ function App() {
 
           <div className="space-y-6">
             <Tabs defaultValue="environment" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 bg-muted/50">
+              <TabsList className="grid w-full grid-cols-3 bg-muted/50">
                 <TabsTrigger value="environment" className="gap-2">
                   <Grid3x3 className="h-4 w-4" />
                   Environment
@@ -290,6 +334,10 @@ function App() {
                 <TabsTrigger value="metrics" className="gap-2">
                   <TrendingUp className="h-4 w-4" />
                   Metrics
+                </TabsTrigger>
+                <TabsTrigger value="learn" className="gap-2">
+                  <BookOpen className="h-4 w-4" />
+                  Learn
                 </TabsTrigger>
               </TabsList>
 
@@ -299,6 +347,28 @@ function App() {
 
               <TabsContent value="metrics" className="mt-6">
                 <RewardChart episodes={trainingResult?.episodes ?? []} />
+              </TabsContent>
+
+              <TabsContent value="learn" className="mt-6 h-[600px] space-y-6 overflow-y-auto pr-2">
+                <AlgorithmExplanation algorithmName={selectedAlgo} />
+
+                {trainingResult?.value_function && (
+                  <div className="h-[400px]">
+                    <ValueFunctionView
+                      envName={selectedEnv}
+                      valueFunction={trainingResult.value_function}
+                    />
+                  </div>
+                )}
+
+                {trainingResult?.policy && (
+                  <div className="h-[400px]">
+                    <PolicyView
+                      envName={selectedEnv}
+                      policy={trainingResult.policy}
+                    />
+                  </div>
+                )}
               </TabsContent>
             </Tabs>
           </div>

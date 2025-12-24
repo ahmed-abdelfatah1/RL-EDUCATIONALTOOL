@@ -163,6 +163,75 @@ class FrozenLakeEnv:
         """Check if position is the goal."""
         return self.get_tile_at(row, col) == "G"
 
+    def get_transition_model(self) -> dict:
+        """Return transition dynamics for model-based algorithms.
+
+        FrozenLake is slippery: intended action has 1/3 probability,
+        and each perpendicular direction also has 1/3 probability.
+
+        Returns:
+            dict: Transition model with structure:
+                  {state_id: {action: [(prob, next_state_id, reward, done)]}}
+        """
+        model: dict = {}
+
+        # Direction vectors for each action: LEFT, DOWN, RIGHT, UP
+        deltas = {
+            0: (0, -1),   # LEFT
+            1: (1, 0),    # DOWN
+            2: (0, 1),    # RIGHT
+            3: (-1, 0),   # UP
+        }
+
+        # Perpendicular actions for slippery transitions
+        perpendicular = {
+            0: [1, 3],  # LEFT -> can slip to DOWN or UP
+            1: [0, 2],  # DOWN -> can slip to LEFT or RIGHT
+            2: [1, 3],  # RIGHT -> can slip to DOWN or UP
+            3: [0, 2],  # UP -> can slip to LEFT or RIGHT
+        }
+
+        for state_id in range(self.state_space_size):
+            row = state_id // self.size
+            col = state_id % self.size
+            tile = self.get_tile_at(row, col)
+
+            model[state_id] = {}
+
+            # Terminal states (hole or goal)
+            if tile == "H" or tile == "G":
+                for action in range(4):
+                    model[state_id][action] = [(1.0, state_id, 0.0, True)]
+                continue
+
+            for action in range(4):
+                transitions: list = []
+                possible_directions = [action] + perpendicular[action]
+
+                for direction in possible_directions:
+                    prob = 1.0 / 3.0
+                    dr, dc = deltas[direction]
+                    new_row = row + dr
+                    new_col = col + dc
+
+                    # Clamp to grid bounds
+                    if not (0 <= new_row < self.size and 0 <= new_col < self.size):
+                        new_row, new_col = row, col
+
+                    next_state_id = new_row * self.size + new_col
+                    next_tile = self.get_tile_at(new_row, new_col)
+
+                    is_goal = next_tile == "G"
+                    is_hole = next_tile == "H"
+                    reward = 1.0 if is_goal else 0.0
+                    done = is_goal or is_hole
+
+                    transitions.append((prob, next_state_id, reward, done))
+
+                model[state_id][action] = transitions
+
+        return model
+
     def close(self) -> None:
         """Clean up gymnasium environment."""
         self.env.close()

@@ -42,7 +42,15 @@ def run_training(request: TrainingRequest) -> TrainingRunResponse:
     """
     env = create_env(request.env_name)  # type: ignore[arg-type]
 
+    # Check if this is a model-based algorithm
+    if request.algorithm_name in ["policy_iteration", "value_iteration"]:
+        return _run_model_based_training(request, env)
+
     agent = _create_agent(request, env)
+
+    # Add episode lifecycle hooks for MC and n-step TD
+    if hasattr(agent, 'start_episode'):
+        agent.start_episode()
 
     # Check if there are any subscribers for live visualization
     has_subscribers = stream_publisher.has_subscribers(request.env_name)
@@ -59,12 +67,155 @@ def run_training(request: TrainingRequest) -> TrainingRunResponse:
     history = trainer.run_episodes(request.num_episodes)
 
     episodes = _convert_history(history)
+    
+    # Extract learned knowledge
+    value_function, policy = _extract_agent_knowledge(agent, env)
 
     return TrainingRunResponse(
         env_name=request.env_name,
         algorithm_name=request.algorithm_name,
         episodes=episodes,
+        value_function=value_function,
+        policy=policy,
     )
+
+
+def _run_model_based_training(
+    request: TrainingRequest, env
+) -> TrainingRunResponse:
+    """Run training for model-based algorithms (Policy/Value Iteration).
+
+    These algorithms require a transition model and compute the optimal
+    policy before running any episodes.
+    """
+    from app.domain.training.episode_runner import run_episode_no_update
+
+    # Get transition model from environment
+    if not hasattr(env, 'get_transition_model'):
+        raise ValueError(
+            f"Environment {request.env_name} does not support model-based algorithms"
+        )
+
+    model = env.get_transition_model()
+    num_actions = env.action_space_size
+    num_states = env.state_space_size
+
+    # Build transition function for algorithm
+    def transition_fn(state: tuple, action: int):
+        """Convert model dict to list of (next_state, prob, reward) tuples."""
+        state_id = state[0]
+        # Note: PolicyIteration/ValueIteration use tuple keys for states
+        transitions = model.get(state_id, {}).get(action, [])
+        return [((t[1],), t[0], t[2]) for t in transitions]  # ((next_s,), prob, reward)
+
+    # Create all state tuples for the algorithm
+    states = tuple((s,) for s in range(num_states))
+
+    # Create and run the algorithm
+    if request.algorithm_name == "policy_iteration":
+        agent = PolicyIteration(
+            discount_factor=request.discount_factor,
+            num_actions=num_actions,
+            theta=0.0001,
+        )
+        agent.run_iteration(states, transition_fn)
+    else:  # value_iteration
+        agent = ValueIteration(
+            discount_factor=request.discount_factor,
+            num_actions=num_actions,
+            theta=0.0001,
+        )
+        agent.run(states, transition_fn)
+
+    # Run evaluation episodes with the learned policy
+    has_subscribers = stream_publisher.has_subscribers(request.env_name)
+    history: List[dict] = []
+
+    for ep in range(request.num_episodes):
+        total_reward = 0.0
+        length = 0
+
+        for step in run_episode_no_update(
+            env,
+            agent,
+            request.max_steps_per_episode,
+            env_name=request.env_name,
+            publish_state=has_subscribers,
+        ):
+            total_reward += step["reward"]
+            length += 1
+            if has_subscribers:
+                import time
+                time.sleep(LIVE_VIZ_STEP_DELAY)
+
+        history.append({
+            "episode": ep + 1,
+            "total_reward": total_reward,
+            "length": length,
+        })
+        
+    # Extract learned knowledge
+    value_function, policy = _extract_agent_knowledge(agent, env)
+
+    return TrainingRunResponse(
+        env_name=request.env_name,
+        algorithm_name=request.algorithm_name,
+        episodes=_convert_history(history),
+        value_function=value_function,
+        policy=policy,
+    )
+
+
+def _extract_agent_knowledge(agent, env) -> tuple[Dict[str, float] | None, Dict[str, int] | None]:
+    """Extract value function and policy from agent."""
+    import numpy as np
+    
+    value_function = {}
+    policy = {}
+    
+    # Handle DP algorithms (Policy/Value Iteration)
+    if hasattr(agent, "value_function") and isinstance(agent.value_function, dict):
+        # Keys are tuples like (state_id,)
+        for key, value in agent.value_function.items():
+            # Convert tuple key to string representation for JSON
+            # For GridWorld/FrozenLake, key is (state_id,)
+            str_key = str(key[0]) if len(key) == 1 else str(key)
+            value_function[str_key] = float(value)
+            
+        if hasattr(agent, "policy") and isinstance(agent.policy, dict):
+            for key, action in agent.policy.items():
+                str_key = str(key[0]) if len(key) == 1 else str(key)
+                policy[str_key] = int(action)
+                
+        return value_function, policy
+
+    # Handle Q-Learning / SARSA / n-step TD
+    if hasattr(agent, "q_values") and isinstance(agent.q_values, dict):
+        for key, q_vals in agent.q_values.items():
+            # Extract state ID from key
+            str_key = str(key)
+            
+            # Handle simple tuple keys (e.g. from model-based algos or simple envs)
+            if len(key) == 1:
+                str_key = str(key[0])
+            
+            # Handle complex keys from GridWorld/FrozenLake
+            # GridWorld keys: (info, observation, position) -> index 1 is observation
+            elif env.__class__.__name__ == "GridWorldEnv" and len(key) >= 2:
+                str_key = str(key[1])
+            # FrozenLake keys: (agent_pos, info, observation, size, state_index) -> index 2 is observation
+            elif env.__class__.__name__ == "FrozenLakeEnv" and len(key) >= 3:
+                str_key = str(key[2])
+            
+            # V(s) = max_a Q(s,a)
+            value_function[str_key] = float(np.max(q_vals))
+            
+            # Policy(s) = argmax_a Q(s,a)
+            policy[str_key] = int(np.argmax(q_vals))
+            
+        return value_function, policy
+        
+    return None, None
 
 
 def _create_agent(request: TrainingRequest, env: BaseEnv):

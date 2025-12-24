@@ -96,34 +96,56 @@ export function RunControls({
               />
             </div>
 
+            {["q_learning", "sarsa", "n_step_td", "td_prediction"].includes(selectedAlgo) && (
+              <div className="space-y-2">
+                <Label htmlFor="learning-rate" className="text-sm text-muted-foreground">
+                  Learning rate (α)
+                </Label>
+                <Input
+                  id="learning-rate"
+                  type="number"
+                  step="0.01"
+                  value={learningRate}
+                  onChange={(e) => setLearningRate(Number(e.target.value))}
+                  className="bg-background border-border"
+                />
+              </div>
+            )}
+          </div>
+
+          {["q_learning", "sarsa", "n_step_td", "monte_carlo"].includes(selectedAlgo) && (
             <div className="space-y-2">
-              <Label htmlFor="learning-rate" className="text-sm text-muted-foreground">
-                Learning rate (α)
+              <Label htmlFor="epsilon" className="text-sm text-muted-foreground">
+                Epsilon (ε)
               </Label>
               <Input
-                id="learning-rate"
+                id="epsilon"
                 type="number"
                 step="0.01"
-                value={learningRate}
-                onChange={(e) => setLearningRate(Number(e.target.value))}
+                value={epsilon}
+                onChange={(e) => setEpsilon(Number(e.target.value))}
                 className="bg-background border-border"
               />
             </div>
-          </div>
+          )}
 
-          <div className="space-y-2">
-            <Label htmlFor="epsilon" className="text-sm text-muted-foreground">
-              Epsilon (ε)
-            </Label>
-            <Input
-              id="epsilon"
-              type="number"
-              step="0.01"
-              value={epsilon}
-              onChange={(e) => setEpsilon(Number(e.target.value))}
-              className="bg-background border-border"
-            />
-          </div>
+          {selectedAlgo === "n_step_td" && (
+            <div className="space-y-2">
+              <Label htmlFor="n-step" className="text-sm text-muted-foreground">
+                N-Step (n)
+              </Label>
+              <Input
+                id="n-step"
+                type="number"
+                step="1"
+                min="1"
+                value={3} // Hardcoded default for now as state is not exposed
+                disabled={true} // Placeholder until n_step state is added
+                className="bg-background border-border opacity-50"
+              />
+              <p className="text-xs text-muted-foreground">Fixed at n=3 for now</p>
+            </div>
+          )}
         </div>
 
         {error && (
